@@ -5,6 +5,8 @@ with open('README.rst') as f:
 
 setup(
     name='Apertag',
+    author = "Adam Svanberg",
+    author_email = "asvanberg@gmail.com",
     version='1.0',
     py_modules=['apertag'],
     description='Averaged Perceptron Sequence Tagger',

@@ -4,6 +4,7 @@ from itertools import izip
 import cPickle
 import logging
 import random
+import re
 
 NOTAG = '_N_'
 
@@ -292,7 +293,6 @@ class Tagger(object):
 if __name__ == '__main__':
     import argparse
     from itertools import tee
-    import re
 
     def read_sequences(f):
         """

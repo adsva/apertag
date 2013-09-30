@@ -219,10 +219,7 @@ class Tagger(object):
         """
         iterations = iterations or self.iterations
 
-        # Combine the features and the correct tags into counted sets of
-        # feature-tag combinations for each sequence
         log.info('Reading training sequences')
-
         seqs = zip(feature_seqs, tag_seqs)
         num_seqs = len(seqs)
 

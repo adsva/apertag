@@ -269,9 +269,11 @@ class Tagger(object):
                 # Add local tag context from this path to features
                 # that require it
                 if self.expand_features:
-                    features = list(self._expanded_features(features, path[1]))
+                    path_features = list(self._expanded_features(features, path[1]))
+                else:
+                    path_features = features
                 for tag in self.model.tags:
-                    score = path[0] + self.model.score(features, tag)
+                    score = path[0] + self.model.score(path_features, tag)
                     candidates.append((score, path[1]+[tag]))
 
             # Prune the candidates

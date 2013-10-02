@@ -321,7 +321,7 @@ if __name__ == '__main__':
             t.export_model(args.model)
 
     def tag(args):
-        t = Tagger(model=args.model)
+        t = Tagger(model=args.model, beam_size=args.beam_size)
         with args.tags as f:
             if args.eval:
                 i,c = 0,0

@@ -7,7 +7,7 @@ setup(
     name='Apertag',
     author = "Adam Svanberg",
     author_email = "asvanberg@gmail.com",
-    version='1.0.1',
+    version='1.0.2',
     py_modules=['apertag'],
     description='Averaged Perceptron Sequence Tagger',
     url='https://github.com/adsva/apertag',

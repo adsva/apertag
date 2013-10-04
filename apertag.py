@@ -160,6 +160,7 @@ class Tagger(object):
         >>> list(t._expanded_features(['POS-TRI:<T3>:<T2>:<T1>'],['VB','DT']))
         ['POS-TRI:_N_:VB:DT']
         """
+        expanded = []
         for feature in features:
             try:
                 matches = self.tag_p.finditer(feature)
@@ -174,7 +175,8 @@ class Tagger(object):
                     except IndexError:
                         tag = NOTAG
                     feature = feature.replace(m.group(), tag)
-            yield feature
+            expanded.append(feature)
+        return expanded
 
     def _expanded_feature_seq(self, feature_seq, tags):
         """
@@ -260,7 +262,6 @@ class Tagger(object):
         self.model.average()
         log.info('Done training')
 
-
     def tag(self, feature_seq):
         paths = [(0,[])]
         for features in feature_seq:
@@ -269,7 +270,7 @@ class Tagger(object):
                 # Add local tag context from this path to features
                 # that require it
                 if self.expand_features:
-                    path_features = list(self._expanded_features(features, path[1]))
+                    path_features = self._expanded_features(features, path[1])
                 else:
                     path_features = features
                 for tag in self.model.tags:

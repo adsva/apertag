@@ -5,82 +5,11 @@ import cPickle
 import logging
 import random
 import re
+import perceptron
 
 NOTAG = '_N_'
 
 log = logging.getLogger('apertag')
-
-class Weight(object):
-    def __init__(self):
-        self.weight = 0.0
-        self.total = 0.0
-        self.iterations = 0
-
-    def __repr__(self):
-        return '<Weight w: {:f} t: {:f} i: {:d}>'.format(
-            self.weight, self.total, self.iterations)
-
-def defaultweights():
-    return defaultdict(Weight)
-
-class AveragedPerceptron(object):
-
-    def __init__(self):
-        self.weights = defaultdict(defaultweights)
-        self.tags = set([NOTAG])
-        self.i = 0
-
-    def update(self, weights):
-        """
-        Adjust the weights for non-zero feature-tag pairs
-
-        In order to average the weights later, the sum of all feature
-        weights accross all updates need to be stored. To avoid adding
-        the current weight of every unchanged feature on every update,
-        we record the update iteration when a weight actually changes,
-        and the next time the weight is about to be changed (or when
-        training is completed) the current weight multiplied by the
-        number of unrecorded updates is added to the total before
-        proceeding.
-        """
-        self.i += 1
-        for (feature, tag), weight in weights.iteritems():
-            self.tags.add(tag)
-            if weight:
-                w = self.weights[feature][tag]
-                # Update the weight sum with the last registered weight
-                # for every iteration since it was updated
-                w.total += (self.i - w.iterations) * w.weight
-
-                # Update the weight and the total
-                w.weight += weight
-                w.total += w.weight
-
-                # Store the update iteration
-                w.iterations = self.i
-
-    def score(self, features, tag):
-        score = 0
-        for feature in features:
-            if feature in self.weights:
-                if tag in self.weights[feature]:
-                    score += self.weights[feature][tag].weight
-        return score
-
-    def average(self):
-        """
-        Average the weights across all updates and reset totals
-        """
-        for feature, tags in self.weights.iteritems():
-            for tag, w in tags.iteritems():
-                # Make sure all updates are accounted for in the total
-                w.total += (self.i - w.iterations) * w.weight
-                w.weight = w.total/self.i if self.i else 0
-                # Reset the feature so it's suitable for re-training.
-                w.total = w.weight
-                w.iterations = 0
-
-
 
 class Tagger(object):
     """
@@ -135,13 +64,14 @@ class Tagger(object):
         if isinstance(model, file):
             log.info('Loading model from {:s}'.format(model.name))
             model = cPickle.load(model)
-        self.model = model or AveragedPerceptron()
+        self.model = model or perceptron.AveragedPerceptron()
         if beam_size < 1:
             raise Exception('Beam must be >= 1')
         self.beam_size = beam_size
         self.iterations = iterations
         self.expand_features = expand_features
         self.tag_p = re.compile(r'<T-?(\d+)>')
+
 
     def _expanded_features(self, features, prev_tags):
         """
@@ -263,6 +193,12 @@ class Tagger(object):
         log.info('Done training')
 
     def tag(self, feature_seq):
+        if self.beam_size > 1 and self.expand_features:
+            return self.beam_tag(feature_seq)
+        else:
+            return self.greedy_tag(feature_seq)
+
+    def beam_tag(self, feature_seq):
         paths = [(0,[])]
         for features in feature_seq:
             candidates = []
@@ -273,9 +209,10 @@ class Tagger(object):
                     path_features = self._expanded_features(features, path[1])
                 else:
                     path_features = features
-                for tag in self.model.tags:
-                    score = path[0] + self.model.score(path_features, tag)
-                    candidates.append((score, path[1]+[tag]))
+
+                candidates.extend(
+                    [(score, path[1]+[tag])
+                     for tag, score in self.model.tag_scores(features)])
 
             # Prune the candidates
             candidates.sort(reverse=True)
@@ -283,6 +220,14 @@ class Tagger(object):
 
         paths.sort(reverse=True)
         return paths[0][1]
+
+    def greedy_tag(self, feature_seq):
+        tags = []
+        for features in feature_seq:
+            if self.expand_features:
+                features = self._expanded_features(features, tags)
+            tags.append(self.model.best_tag(features))
+        return tags
 
     def export_model(self, f):
         if isinstance(f, basestring):
